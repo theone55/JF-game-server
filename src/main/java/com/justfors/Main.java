@@ -108,86 +108,6 @@ public class Main implements NetConnectionServer {
         }
     }
 
-    private void shotlogic(Double x, Double y, String direction, String owner){
-        new Shot(x,y,direction, owner).start();
-    }
-
-    private class Shot extends Thread {
-
-        private String direction;
-        private String owner;
-        private Double x;
-        private Double y;
-
-        public Shot(Double x, Double y, String direction, String owner){
-            this.x = x;
-            this.y = y;
-            this.direction = direction;
-            this.owner = owner;
-        }
-
-        @Override
-        public void run() {
-            TransferData transferData = new TransferData();
-            transferData.setToken("BULLET");
-            transferData.setUser(UUID.randomUUID().toString());
-            for (int i = 0; i < 50; i++) {
-                try {
-                    Thread.sleep(50);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-                String data = null;
-                switch (direction) {
-                    case UP:
-                        data = x + ":" + (y - i*BULLET_STEP);
-                        break;
-                    case DOWN:
-                        data = x + ":" + (y + i*BULLET_STEP);
-                        break;
-                    case LEFT:
-                        data = (x - i*BULLET_STEP) + ":" + y;
-                        break;
-                    case RIGHT:
-                        data = (x + i*BULLET_STEP) + ":" + y;
-                        break;
-                }
-                transferData.setData(data);
-                String[] bulletCoordinates = transferData.getData().split(":");
-                userCoordinates.forEach((k,v) -> {
-                    if (!k.equals(owner)) {
-                        String[] playerCoordinates = v.get(0).split(":");
-                        if (checkHit(Double.valueOf(playerCoordinates[0]), Double.valueOf(playerCoordinates[1]), Double.valueOf(bulletCoordinates[0]), Double.valueOf(bulletCoordinates[1]))) {
-                            transferData.setData("REMOVE:"+k);
-                            for (Server.ServerConnection connection : Server.connections) {
-                                connection.getOut().send(transferData.build());
-                            }
-                        }
-                    }
-                });
-                if (transferData.getData().contains("REMOVE:")){
-                    break;
-                }
-                for (Server.ServerConnection connection : Server.connections) {
-                    connection.getOut().send(transferData.build());
-                }
-            }
-            transferData.setData("REMOVE");
-            for (Server.ServerConnection connection : Server.connections) {
-                connection.getOut().send(transferData.build());
-            }
-        }
-
-        private boolean checkHit(Double xP, Double yP, Double xB, Double yB){
-            if (xP <= xB && xP+STEP >= xB+BULLET_STEP){
-                if (yP <= yB && yP+STEP >= yB+BULLET_STEP){
-                    return true;
-                }
-            }
-            return false;
-        }
-    }
-
     private class Shot2 extends Thread {
 
         @Override
@@ -226,7 +146,7 @@ public class Main implements NetConnectionServer {
                         userCoordinates.forEach((k,v) -> {
                             if (!k.equals(gameObject.owner)) {
                                 String[] playerCoordinates = v.get(0).split(":");
-                                if (checkHit(Double.valueOf(playerCoordinates[0]), Double.valueOf(playerCoordinates[1]), Double.valueOf(bulletCoordinates[0]), Double.valueOf(bulletCoordinates[1]))) {
+                                if (checkOverlay(Double.valueOf(playerCoordinates[0]), Double.valueOf(playerCoordinates[1]), Double.valueOf(bulletCoordinates[0]), Double.valueOf(bulletCoordinates[1]))) {
                                     transferData.setData("REMOVE:"+k);
                                     for (Server.ServerConnection connection : Server.connections) {
                                         connection.getOut().send(transferData.build());
@@ -249,15 +169,15 @@ public class Main implements NetConnectionServer {
                 });
             }
         }
+    }
 
-        private boolean checkHit(Double xP, Double yP, Double xB, Double yB){
-            if (xP <= xB && xP+STEP >= xB+BULLET_STEP){
-                if (yP <= yB && yP+STEP >= yB+BULLET_STEP){
-                    return true;
-                }
+    private boolean checkOverlay(Double xP, Double yP, Double xB, Double yB){
+        if (xP <= xB && xP+STEP >= xB+BULLET_STEP){
+            if (yP <= yB && yP+STEP >= yB+BULLET_STEP){
+                return true;
             }
-            return false;
         }
+        return false;
     }
 
     private class GameObject {
