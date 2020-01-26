@@ -1,0 +1,9 @@
+*.project
+*.classpath
+.settings/
+**/.settings/
+**/target/
+/bin/
+**/.idea
+*.iml
+web/src/main/webapp/assets/generated/
