@@ -10,14 +10,21 @@ import java.io.IOException;
 import java.net.Socket;
 import java.net.SocketException;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class Main implements NetConnectionServer {
+
+    public Main() {
+        new Shot2().start();
+    }
 
     private static final String RIGHT = "RIGHT";
     private static final String LEFT = "LEFT";
     private static final String UP = "UP";
     private static final String DOWN = "DOWN";
     private static final String SHOT = "SHOT";
+
+    private static final Map<String, GameObject> gameObjects = new ConcurrentHashMap<>();
 
     private static Map<String, List<String>> userCoordinates = new HashMap<>();
 
@@ -78,7 +85,7 @@ public class Main implements NetConnectionServer {
         transferData.setUser(data.getUser());
         if (shot) {
             String[] bulletCoordinates = userCoordinates.get(data.getUser()).get(0).split(":");
-            shotlogic(Double.valueOf(bulletCoordinates[0]), Double.valueOf(bulletCoordinates[1]), userCoordinates.get(data.getUser()).get(1), data.getUser());
+            gameObjects.put(UUID.randomUUID().toString(), new GameObject(data.getUser(), "BULLET", Double.valueOf(bulletCoordinates[0]), Double.valueOf(bulletCoordinates[1]), direction));
         } else {
             userCoordinates.put(data.getUser(), Arrays.asList(transferData.getData() == null ? "0:0" : transferData.getData(), direction));
         }
@@ -178,6 +185,95 @@ public class Main implements NetConnectionServer {
                 }
             }
             return false;
+        }
+    }
+
+    private class Shot2 extends Thread {
+
+        @Override
+        public void run() {
+            TransferData transferData = new TransferData();
+            while (true) {
+                try {
+                    Thread.sleep(50);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                gameObjects.forEach((name,gameObject) -> {
+                    if (gameObject.objectType.equals("BULLET")) {
+                        transferData.setToken(gameObject.objectType);
+                        transferData.setUser(name);
+                        long i = gameObject.countOfCalls;
+                        String data = null;
+                        switch (gameObject.direction) {
+                            case UP:
+                                data = gameObject.x + ":" + (gameObject.y - i * BULLET_STEP);
+                                break;
+                            case DOWN:
+                                data = gameObject.x + ":" + (gameObject.y + i * BULLET_STEP);
+                                break;
+                            case LEFT:
+                                data = (gameObject.x - i * BULLET_STEP) + ":" + gameObject.y;
+                                break;
+                            case RIGHT:
+                                data = (gameObject.x + i * BULLET_STEP) + ":" + gameObject.y;
+                                break;
+                        }
+                        gameObject.countOfCalls++;
+
+                        transferData.setData(data);
+                        String[] bulletCoordinates = transferData.getData().split(":");
+                        userCoordinates.forEach((k,v) -> {
+                            if (!k.equals(gameObject.owner)) {
+                                String[] playerCoordinates = v.get(0).split(":");
+                                if (checkHit(Double.valueOf(playerCoordinates[0]), Double.valueOf(playerCoordinates[1]), Double.valueOf(bulletCoordinates[0]), Double.valueOf(bulletCoordinates[1]))) {
+                                    transferData.setData("REMOVE:"+k);
+                                    for (Server.ServerConnection connection : Server.connections) {
+                                        connection.getOut().send(transferData.build());
+                                    }
+                                }
+                            }
+                        });
+                        if (gameObject.countOfCalls >= 50 || transferData.getData().contains("REMOVE:")) {
+                            gameObjects.remove(name);
+                            transferData.setData("REMOVE");
+                            for (Server.ServerConnection connection : Server.connections) {
+                                connection.getOut().send(transferData.build());
+                            }
+                            return;
+                        }
+                        for (Server.ServerConnection connection : Server.connections) {
+                            connection.getOut().send(transferData.build());
+                        }
+                    }
+                });
+            }
+        }
+
+        private boolean checkHit(Double xP, Double yP, Double xB, Double yB){
+            if (xP <= xB && xP+STEP >= xB+BULLET_STEP){
+                if (yP <= yB && yP+STEP >= yB+BULLET_STEP){
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
+    private class GameObject {
+        private String owner;
+        private String objectType;
+        private Double x;
+        private Double y;
+        private Long countOfCalls = 0L;
+        private String direction;
+
+        public GameObject(String owner, String objectType, Double x, Double y, String direction) {
+            this.owner = owner;
+            this.objectType = objectType;
+            this.x = x;
+            this.y = y;
+            this.direction = direction;
         }
     }
 }
