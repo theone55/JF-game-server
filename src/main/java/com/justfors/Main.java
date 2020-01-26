@@ -120,31 +120,31 @@ public class Main implements NetConnectionServer {
                     e.printStackTrace();
                 }
                 gameObjects.forEach((name,gameObject) -> {
-                    if (gameObject.objectType.equals("BULLET")) {
-                        transferData.setToken(gameObject.objectType);
+                    if (gameObject.getObjectType().equals("BULLET")) {
+                        transferData.setToken(gameObject.getObjectType());
                         transferData.setUser(name);
-                        long i = gameObject.countOfCalls;
+                        long i = gameObject.getCountOfCalls();
                         String data = null;
-                        switch (gameObject.direction) {
+                        switch (gameObject.getDirection()) {
                             case UP:
-                                data = gameObject.x + ":" + (gameObject.y - i * BULLET_STEP);
+                                data = gameObject.getX()  + ":" + (gameObject.getY() - i * BULLET_STEP);
                                 break;
                             case DOWN:
-                                data = gameObject.x + ":" + (gameObject.y + i * BULLET_STEP);
+                                data = gameObject.getX()  + ":" + (gameObject.getY() + i * BULLET_STEP);
                                 break;
                             case LEFT:
-                                data = (gameObject.x - i * BULLET_STEP) + ":" + gameObject.y;
+                                data = (gameObject.getX()  - i * BULLET_STEP) + ":" + gameObject.getY();
                                 break;
                             case RIGHT:
-                                data = (gameObject.x + i * BULLET_STEP) + ":" + gameObject.y;
+                                data = (gameObject.getX() + i * BULLET_STEP) + ":" + gameObject.getY();
                                 break;
                         }
-                        gameObject.countOfCalls++;
+                        gameObject.incrimentCountOfCall();
 
                         transferData.setData(data);
                         String[] bulletCoordinates = transferData.getData().split(":");
                         userCoordinates.forEach((k,v) -> {
-                            if (!k.equals(gameObject.owner)) {
+                            if (!k.equals(gameObject.getOwner())) {
                                 String[] playerCoordinates = v.get(0).split(":");
                                 if (checkOverlay(Double.valueOf(playerCoordinates[0]), Double.valueOf(playerCoordinates[1]), Double.valueOf(bulletCoordinates[0]), Double.valueOf(bulletCoordinates[1]))) {
                                     transferData.setData("REMOVE:"+k);
@@ -154,7 +154,7 @@ public class Main implements NetConnectionServer {
                                 }
                             }
                         });
-                        if (gameObject.countOfCalls >= 50 || transferData.getData().contains("REMOVE:")) {
+                        if (gameObject.getCountOfCalls() >= 50 || transferData.getData().contains("REMOVE:")) {
                             gameObjects.remove(name);
                             transferData.setData("REMOVE");
                             for (Server.ServerConnection connection : Server.connections) {
@@ -180,20 +180,4 @@ public class Main implements NetConnectionServer {
         return false;
     }
 
-    private class GameObject {
-        private String owner;
-        private String objectType;
-        private Double x;
-        private Double y;
-        private Long countOfCalls = 0L;
-        private String direction;
-
-        public GameObject(String owner, String objectType, Double x, Double y, String direction) {
-            this.owner = owner;
-            this.objectType = objectType;
-            this.x = x;
-            this.y = y;
-            this.direction = direction;
-        }
-    }
 }
